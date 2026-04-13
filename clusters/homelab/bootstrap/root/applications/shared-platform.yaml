@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shared-platform
+  namespace: argocd
+  labels:
+    homelab.io/scope: cluster-shared
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/bhenriq-souza/homelab-gitops.git
+    targetRevision: main
+    path: clusters/homelab/platform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform-shared
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: external-secrets
+  labels:
+    homelab.io/scope: cluster-shared
+    homelab.io/component: secrets

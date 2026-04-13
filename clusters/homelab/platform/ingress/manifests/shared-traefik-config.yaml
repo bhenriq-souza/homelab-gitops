@@ -1,0 +1,21 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+  labels:
+    homelab.io/scope: cluster-shared
+    homelab.io/component: ingress
+spec:
+  valuesContent: |-
+    ports:
+      postgres:
+        expose:
+          default: true
+        port: 5432
+        exposedPort: 5432
+        protocol: TCP
+    service:
+      spec:
+        loadBalancerSourceRanges:
+          - 192.168.15.0/24

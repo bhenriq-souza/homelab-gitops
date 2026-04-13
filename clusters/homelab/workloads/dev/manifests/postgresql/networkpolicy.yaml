@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgresql-dev-restrict-access
+  namespace: dev-apps
+  labels:
+    app.kubernetes.io/name: postgresql
+    homelab.io/environment: dev
+    homelab.io/component: database
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+        - podSelector:
+            matchLabels:
+              homelab.io/database-access: postgresql
+      ports:
+        - protocol: TCP
+          port: 5432

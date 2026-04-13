@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dev-bootstrap
+  namespace: dev-apps
+  labels:
+    homelab.io/environment: dev
+    homelab.io/scope: environment
+data:
+  owner: gitops
+  purpose: "Placeholder for dev workload manifests"

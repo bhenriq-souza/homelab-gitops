@@ -1,0 +1,119 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shared-observability
+  namespace: argocd
+  labels:
+    homelab.io/scope: cluster-shared
+    homelab.io/component: observability
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 58.7.2
+    helm:
+      releaseName: kube-prometheus-stack
+      values: |
+        alertmanager:
+          enabled: false
+
+        grafana:
+          service:
+            type: ClusterIP
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            hosts:
+              - grafana.homelab.local
+            path: /
+            pathType: Prefix
+            tls:
+              - secretName: grafana-tls
+                hosts:
+                  - grafana.homelab.local
+          additionalDataSources:
+            - name: Loki
+              type: loki
+              access: proxy
+              url: http://loki.observability.svc.cluster.local:3100
+              isDefault: false
+              jsonData:
+                maxLines: 1000
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+
+        prometheus:
+          service:
+            type: ClusterIP
+          prometheusSpec:
+            scrapeInterval: 30s
+            evaluationInterval: 30s
+            retention: 2d
+            retentionSize: 2GB
+            walCompression: true
+            resources:
+              requests:
+                cpu: 100m
+                memory: 512Mi
+              limits:
+                cpu: 500m
+                memory: 1Gi
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  accessModes:
+                    - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 8Gi
+
+        kubeEtcd:
+          enabled: false
+        kubeControllerManager:
+          enabled: false
+        kubeScheduler:
+          enabled: false
+
+        kube-state-metrics:
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              cpu: 150m
+              memory: 128Mi
+
+        prometheus-node-exporter:
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 150m
+              memory: 64Mi
+
+        prometheusOperator:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - ServerSideApply=true

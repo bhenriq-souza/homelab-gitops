@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shared-platform-bootstrap
+  namespace: platform-shared
+  labels:
+    homelab.io/scope: cluster-shared
+data:
+  owner: gitops
+  purpose: "Placeholder for cluster-wide shared platform manifests"

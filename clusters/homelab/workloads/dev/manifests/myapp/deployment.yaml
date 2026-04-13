@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp
+  namespace: dev-apps
+  labels:
+    app.kubernetes.io/name: myapp
+    app.kubernetes.io/part-of: workloads-dev
+    homelab.io/environment: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: myapp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: myapp
+        homelab.io/environment: dev
+    spec:
+      containers:
+        - name: myapp
+          image: kennethreitz/httpbin:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: APP_ENV
+              value: dev
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-auth
+                  key: POSTGRES_URL
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: GUNICORN_CMD_ARGS
+              value: --access-logfile - --error-logfile - --log-level info --capture-output
+          livenessProbe:
+            httpGet:
+              path: /status/200
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /status/200
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi

@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp
+  namespace: dev-apps
+  annotations:
+    kubernetes.io/ingress.class: traefik
+  labels:
+    app.kubernetes.io/name: myapp
+    homelab.io/environment: dev
+spec:
+  rules:
+    - host: myapp.dev.homelab.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: myapp
+                port:
+                  number: 80

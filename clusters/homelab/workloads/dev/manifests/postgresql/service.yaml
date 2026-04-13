@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+  namespace: dev-apps
+  labels:
+    app.kubernetes.io/name: postgresql
+    homelab.io/environment: dev
+    homelab.io/component: database
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: postgresql
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres

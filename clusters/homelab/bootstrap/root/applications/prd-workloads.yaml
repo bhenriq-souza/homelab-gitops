@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prd-workloads
+  namespace: argocd
+  labels:
+    homelab.io/environment: prd
+    homelab.io/scope: environment
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/bhenriq-souza/homelab-gitops.git
+    targetRevision: main
+    path: clusters/homelab/workloads/prd
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: prd-apps
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true

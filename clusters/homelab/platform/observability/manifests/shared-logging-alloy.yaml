@@ -1,0 +1,212 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alloy-logs
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: alloy-logs
+    app.kubernetes.io/part-of: logging
+    homelab.io/scope: cluster-shared
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: alloy-logs
+  labels:
+    app.kubernetes.io/name: alloy-logs
+    app.kubernetes.io/part-of: logging
+    homelab.io/scope: cluster-shared
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "nodes", "namespaces"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: alloy-logs
+  labels:
+    app.kubernetes.io/name: alloy-logs
+    app.kubernetes.io/part-of: logging
+    homelab.io/scope: cluster-shared
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: alloy-logs
+subjects:
+  - kind: ServiceAccount
+    name: alloy-logs
+    namespace: observability
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-logs-config
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: alloy-logs
+    app.kubernetes.io/part-of: logging
+    homelab.io/scope: cluster-shared
+data:
+  config.alloy: |
+    discovery.kubernetes "pods" {
+      role = "pod"
+    }
+
+    discovery.relabel "pods" {
+      targets = discovery.kubernetes.pods.targets
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_phase"]
+        regex         = "Running"
+        action        = "keep"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        target_label  = "namespace"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_name"]
+        target_label  = "pod"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_name"]
+        target_label  = "container"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+        regex         = "(.+)"
+        target_label  = "app"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app"]
+        regex         = "(.+)"
+        target_label  = "app"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        regex         = "(dev|prd)-.*"
+        replacement   = "$1"
+        target_label  = "environment"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        regex         = "observability|argocd"
+        replacement   = "shared"
+        target_label  = "environment"
+      }
+
+      rule {
+        target_label = "cluster"
+        replacement  = "homelab-k3s"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+        action        = "replace"
+        target_label  = "__path__"
+        separator     = "/"
+        replacement   = "/var/log/pods/*$1/*.log"
+      }
+    }
+
+    local.file_match "pods" {
+      path_targets = discovery.relabel.pods.output
+    }
+
+    loki.source.file "pods" {
+      targets    = local.file_match.pods.targets
+      forward_to = [loki.process.pods.receiver]
+    }
+
+    loki.process "pods" {
+      stage.cri {}
+
+      forward_to = [loki.write.default.receiver]
+    }
+
+    loki.write "default" {
+      endpoint {
+        url = "http://loki.observability.svc.cluster.local:3100/loki/api/v1/push"
+      }
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: alloy-logs
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: alloy-logs
+    app.kubernetes.io/part-of: logging
+    homelab.io/scope: cluster-shared
+  annotations:
+    argocd.argoproj.io/sync-wave: "30"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: alloy-logs
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: alloy-logs
+        app.kubernetes.io/part-of: logging
+        homelab.io/scope: cluster-shared
+    spec:
+      serviceAccountName: alloy-logs
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+      containers:
+        - name: alloy
+          image: grafana/alloy:v1.7.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - run
+            - /etc/alloy/config.alloy
+            - --storage.path=/var/lib/alloy/data
+            - --server.http.listen-addr=0.0.0.0:12345
+          ports:
+            - name: http
+              containerPort: 12345
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 384Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alloy
+            - name: varlogpods
+              mountPath: /var/log/pods
+              readOnly: true
+            - name: varlogcontainers
+              mountPath: /var/log/containers
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/alloy/data
+      volumes:
+        - name: config
+          configMap:
+            name: alloy-logs-config
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods
+            type: Directory
+        - name: varlogcontainers
+          hostPath:
+            path: /var/log/containers
+            type: DirectoryOrCreate
+        - name: data
+          hostPath:
+            path: /var/lib/alloy
+            type: DirectoryOrCreate
