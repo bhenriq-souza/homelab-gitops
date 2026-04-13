@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - applications/ai-lab-platform.yaml
+  - applications/ai-lab-secrets-operator.yaml
+  - applications/ai-lab-secrets-config.yaml
+  - applications/ai-lab-workloads-dev.yaml
+  - applications/ai-lab-workloads-prd.yaml

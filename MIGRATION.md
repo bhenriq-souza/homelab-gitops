@@ -43,7 +43,7 @@ kubectl kustomize clusters/homelab/workloads/prd
 ```
 
 ### 3. Atualizar o bootstrap Terraform
-No repositorio `homelab-infra`, garantir os valores abaixo no ambiente `shared`:
+No repositorio `homelab-infra`, garantir os valores abaixo em `terraform/clusters/homelab/bootstrap`:
 
 ```hcl
 gitops_repo_url  = "https://github.com/bhenriq-souza/homelab-gitops.git"
@@ -55,9 +55,9 @@ gitops_target_revision = "main"
 Executar o apply do bootstrap Terraform para atualizar o `homelab-root`:
 
 ```bash
-terraform -chdir=terraform/environments/shared init
-terraform -chdir=terraform/environments/shared plan
-terraform -chdir=terraform/environments/shared apply
+terraform -chdir=terraform/clusters/homelab/bootstrap init
+terraform -chdir=terraform/clusters/homelab/bootstrap plan
+terraform -chdir=terraform/clusters/homelab/bootstrap apply
 ```
 
 Efeito esperado:

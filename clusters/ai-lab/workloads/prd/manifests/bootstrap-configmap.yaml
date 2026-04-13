@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-lab-prd-bootstrap
+  namespace: prd-apps
+  labels:
+    homelab.io/cluster: ai-lab
+    homelab.io/environment: prd
+    homelab.io/layer: workloads
+    homelab.io/scope: environment
+data:
+  owner: gitops
+  purpose: "Placeholder for ai-lab prd workload manifests"

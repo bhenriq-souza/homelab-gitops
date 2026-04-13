@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-lab-platform-bootstrap
+  namespace: platform-shared
+  labels:
+    homelab.io/cluster: ai-lab
+    homelab.io/layer: platform
+    homelab.io/scope: cluster-shared
+data:
+  owner: gitops
+  purpose: "Placeholder for cluster-wide shared platform manifests"

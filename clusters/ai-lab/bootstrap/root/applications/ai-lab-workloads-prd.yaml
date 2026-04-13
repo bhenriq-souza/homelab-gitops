@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ai-lab-workloads-prd
+  namespace: argocd
+  labels:
+    homelab.io/cluster: ai-lab
+    homelab.io/environment: prd
+    homelab.io/layer: workloads
+    homelab.io/scope: environment
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/bhenriq-souza/homelab-gitops.git
+    targetRevision: main
+    path: clusters/ai-lab/workloads/prd
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: prd-apps
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
