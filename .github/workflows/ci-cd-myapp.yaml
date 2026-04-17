@@ -1,0 +1,21 @@
+name: CI/CD - myapp
+on:
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - "clusters/homelab/workloads/*/manifests/myapp/Dockerfile"
+
+jobs:
+  build-and-deploy:
+    uses: ./.github/workflows/docker-build-push.yaml
+    with:
+      app-name: myapp
+      environment: ${{ github.ref_name == 'main' && 'prd' || 'dev' }}
+      dockerfile: clusters/homelab/workloads/dev/manifests/myapp/Dockerfile
+      context: clusters/homelab/workloads/dev/manifests/myapp
+    secrets:
+      GCP_WIF_PROVIDER: ${{ secrets.GCP_WIF_PROVIDER }}
+      GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      GITOPS_PAT: ${{ secrets.GITOPS_PAT }}

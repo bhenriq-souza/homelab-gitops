@@ -18,10 +18,12 @@ spec:
         app.kubernetes.io/name: myapp
         homelab.io/environment: prd
     spec:
+      imagePullSecrets:
+        - name: ar-image-pull-secret
       containers:
         - name: myapp
-          image: kennethreitz/httpbin:latest
-          imagePullPolicy: IfNotPresent
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/myapp:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 80
               name: http

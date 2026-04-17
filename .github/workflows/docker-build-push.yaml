@@ -1,0 +1,131 @@
+name: Build and Push Docker Image
+on:
+  workflow_call:
+    inputs:
+      app-name:
+        description: "Nome da aplicacao (usado como path da imagem no registry)"
+        required: true
+        type: string
+      environment:
+        description: "Ambiente alvo: dev ou prd"
+        required: true
+        type: string
+      dockerfile:
+        description: "Caminho do Dockerfile"
+        required: false
+        type: string
+        default: "./Dockerfile"
+      context:
+        description: "Contexto do Docker build"
+        required: false
+        type: string
+        default: "."
+      registry-url:
+        description: "URL base do Artifact Registry"
+        required: false
+        type: string
+        default: "us-central1-docker.pkg.dev/homelab-492918/homelab-apps"
+      gitops-repo:
+        description: "Repositorio GitOps para atualizar"
+        required: false
+        type: string
+        default: "bhenriq-souza/homelab-gitops"
+      gitops-branch:
+        description: "Branch do repo GitOps"
+        required: false
+        type: string
+        default: "main"
+    secrets:
+      GCP_WIF_PROVIDER:
+        description: "Nome completo do WIF provider"
+        required: true
+      GCP_SERVICE_ACCOUNT:
+        description: "Email da SA de CI do GCP"
+        required: true
+      GITOPS_PAT:
+        description: "PAT com contents:write no repo GitOps"
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.sha_tag }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Generate image metadata
+        id: meta
+        run: |
+          SHA_TAG="sha-$(echo ${{ github.sha }} | cut -c1-7)"
+          echo "sha_tag=${SHA_TAG}" >> "$GITHUB_OUTPUT"
+          echo "full_image=${{ inputs.registry-url }}/${{ inputs.app-name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.full_image }}:${{ steps.meta.outputs.sha_tag }}
+            ${{ steps.meta.outputs.full_image }}:latest
+
+  update-gitops:
+    needs: build-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout GitOps repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.gitops-repo }}
+          ref: ${{ inputs.gitops-branch }}
+          token: ${{ secrets.GITOPS_PAT }}
+
+      - name: Update image tag in manifests
+        env:
+          APP_NAME: ${{ inputs.app-name }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          IMAGE_TAG: ${{ needs.build-push.outputs.image-tag }}
+          REGISTRY_URL: ${{ inputs.registry-url }}
+        run: |
+          MANIFEST_DIR="clusters/homelab/workloads/${ENVIRONMENT}/manifests/${APP_NAME}"
+          DEPLOYMENT_FILE="${MANIFEST_DIR}/deployment.yaml"
+
+          if [ ! -f "${DEPLOYMENT_FILE}" ]; then
+            echo "ERROR: ${DEPLOYMENT_FILE} not found"
+            exit 1
+          fi
+
+          FULL_IMAGE="${REGISTRY_URL}/${APP_NAME}:${IMAGE_TAG}"
+          sed -i "s|image: ${REGISTRY_URL}/${APP_NAME}:.*|image: ${FULL_IMAGE}|g" "${DEPLOYMENT_FILE}"
+
+          echo "Updated ${DEPLOYMENT_FILE} to ${FULL_IMAGE}"
+
+      - name: Commit and push
+        env:
+          APP_NAME: ${{ inputs.app-name }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          IMAGE_TAG: ${{ needs.build-push.outputs.image-tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "chore(${ENVIRONMENT}): update ${APP_NAME} to ${IMAGE_TAG}"
+          git push
