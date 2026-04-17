@@ -3,4 +3,3 @@ kind: Kustomization
 resources:
   - manifests/bootstrap-configmap.yaml
   - manifests/externalsecret-image-pull.yaml
-  - manifests/myapp
