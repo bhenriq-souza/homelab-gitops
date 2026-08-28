@@ -42,8 +42,11 @@ on:
       GCP_SERVICE_ACCOUNT:
         description: "Email da SA de CI do GCP"
         required: true
-      GITOPS_PAT:
-        description: "PAT com contents:write no repo GitOps"
+      GITOPS_DEPLOY_KEY:
+        description: >
+          Chave SSH privada de uma deploy key com escrita no repo GitOps.
+          Preferida a um PAT: escopo de um único repositório, sem vínculo com
+          uma conta pessoal e sem prazo de expiração para quebrar o pipeline.
         required: true
 
 permissions:
@@ -95,7 +98,9 @@ jobs:
         with:
           repository: ${{ inputs.gitops-repo }}
           ref: ${{ inputs.gitops-branch }}
-          token: ${{ secrets.GITOPS_PAT }}
+          # A deploy key faz o checkout via SSH e deixa o remote autenticado,
+          # que é o que o push do fim deste job usa.
+          ssh-key: ${{ secrets.GITOPS_DEPLOY_KEY }}
 
       - name: Update image tag in manifests
         env:
