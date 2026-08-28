@@ -3,5 +3,6 @@ kind: Kustomization
 resources:
   - manifests/bootstrap-configmap.yaml
   - manifests/externalsecret-image-pull.yaml
+  - manifests/finances-backend
   - manifests/myapp
   - manifests/postgresql

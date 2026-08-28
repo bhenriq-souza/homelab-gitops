@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: finances-backend
+  namespace: dev-apps
+  labels:
+    app.kubernetes.io/name: finances-backend
+    homelab.io/environment: dev
+spec:
+  # ingressClassName é a forma suportada; a annotation kubernetes.io/ingress.class
+  # usada em manifestos mais antigos deste repositório está depreciada.
+  ingressClassName: traefik
+  rules:
+    - host: finances.dev.homelab.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: finances-backend
+                port:
+                  number: 80
