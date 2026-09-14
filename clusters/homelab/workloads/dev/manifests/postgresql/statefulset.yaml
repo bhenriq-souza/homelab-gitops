@@ -28,16 +28,24 @@ spec:
           ports:
             - name: postgres
               containerPort: 5432
+          args:
+            - postgres
+            - -c
+            - shared_buffers=256MB
+            - -c
+            - maintenance_work_mem=256MB
+            - -c
+            - work_mem=16MB
           envFrom:
             - secretRef:
                 name: postgresql-auth
           resources:
             requests:
-              cpu: 50m
-              memory: 128Mi
+              cpu: 100m
+              memory: 256Mi
             limits:
-              cpu: 300m
-              memory: 512Mi
+              cpu: "2"
+              memory: 2Gi
           volumeMounts:
             - name: postgresql-data
               mountPath: /var/lib/postgresql/data
