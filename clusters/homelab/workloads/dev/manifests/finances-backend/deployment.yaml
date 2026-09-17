@@ -23,6 +23,42 @@ spec:
     spec:
       imagePullSecrets:
         - name: ar-image-pull-secret
+      # As migrations rodam aqui, e não no boot da aplicação (ADR local 0001 do
+      # backend). O container da app só inicia depois deste sair com sucesso, e
+      # uma migration que falha barra o rollout em vez de virar crash loop: a
+      # réplica anterior continua servindo. `migration:run` é idempotente.
+      initContainers:
+        - name: migrations
+          # O pipeline reescreve esta linha com a tag do commit; manter o formato.
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/finances-backend:sha-169b8e9
+          imagePullPolicy: Always
+          command:
+            - node
+            - node_modules/typeorm/cli.js
+            - migration:run
+            - --dataSource
+            - dist/src/platform/database/data-source.js
+          env:
+            - name: APPLICATION_NAME
+              value: finances-control-backend
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: finances-backend-database
+                  key: DATABASE_URL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
       containers:
         - name: finances-backend
           # O pipeline reescreve esta linha com a tag do commit; manter o formato.
@@ -42,6 +78,11 @@ spec:
               value: "3000"
             - name: LOG_LEVEL
               value: info
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: finances-backend-database
+                  key: DATABASE_URL
           # /health é liveness puro: não toca em dependência externa, então uma
           # indisponibilidade do banco não faz o kubelet reiniciar o pod.
           livenessProbe:
@@ -50,12 +91,15 @@ spec:
               port: http
             initialDelaySeconds: 10
             periodSeconds: 15
+          # /health/ready sonda o banco. Banco fora tira o pod do balanceamento
+          # sem reiniciá-lo, e a própria probe reabre a conexão quando ele volta.
           readinessProbe:
             httpGet:
-              path: /health
+              path: /health/ready
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 3
           resources:
             requests:
               cpu: 50m
