@@ -70,6 +70,42 @@ jobs:
             GITOPS_DEPLOY_KEY: ${{ secrets.GITOPS_DEPLOY_KEY }}
 ```
 
-## 6. DNS
+## 6. Banco de dados dedicado (quando a aplicação precisar de um)
+
+Cada aplicação tem o seu database e o seu role — nunca o `appuser` do `homelab_ai`. Assim uma
+aplicação não enxerga nem derruba os dados de outra na mesma instância.
+
+```bash
+# 1. Senha só existe em memória e no Secret Manager
+APP_PASSWORD="$(openssl rand -base64 30 | tr -d '/+=' | head -c 32)"
+
+# 2. Database e role no PostgreSQL do cluster (idempotente)
+APP_PASSWORD="$APP_PASSWORD" ./scripts/provision-app-database.sh <app>_dev <app>_app
+
+# 3. Secrets no GCP Secret Manager, projeto homelab-492918
+printf '%s' "$APP_PASSWORD" | gcloud secrets create homelab-dev-<app>-database-password \
+  --data-file=- --project homelab-492918
+printf 'postgres://<app>_app:%s@postgresql.dev-apps.svc.cluster.local:5432/<app>_dev' "$APP_PASSWORD" \
+  | gcloud secrets create homelab-dev-<app>-database-url --data-file=- --project homelab-492918
+
+unset APP_PASSWORD
+```
+
+Depois, um `ExternalSecret` no diretório da aplicação traz a URL para dentro do cluster, e o
+`deployment.yaml` a consome por `secretKeyRef`. Veja `finances-backend/externalsecret.yaml` como
+referência.
+
+Pontos que costumam morder:
+
+- **Schema `public`:** no PostgreSQL 15+ ele não aceita mais `CREATE` de qualquer role. O script
+  passa a propriedade do schema ao role da aplicação; sem isso, a primeira migration falha por
+  permissão.
+- **Migrations:** rodam num `initContainer` com a mesma imagem da aplicação, não no boot dela. O
+  container da app só inicia depois que ele sai com sucesso, e uma migration que falha barra o
+  rollout em vez de virar crash loop.
+- **Rotação:** rodar o script de novo com outra senha reafirma o role; lembre de criar a nova versão
+  dos dois secrets e de reiniciar o deployment.
+
+## 7. DNS
 
 Aponte `<app>.dev.homelab.local` para o IP do Traefik (`192.168.15.97`) no seu resolvedor local ou no roteador.
