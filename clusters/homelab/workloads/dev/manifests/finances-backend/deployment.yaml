@@ -30,7 +30,7 @@ spec:
       initContainers:
         - name: migrations
           # O pipeline reescreve esta linha com a tag do commit; manter o formato.
-          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/finances-backend:sha-915bf77
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/finances-backend:sha-3da8883
           imagePullPolicy: Always
           command:
             - node
@@ -62,7 +62,7 @@ spec:
       containers:
         - name: finances-backend
           # O pipeline reescreve esta linha com a tag do commit; manter o formato.
-          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/finances-backend:sha-915bf77
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/finances-backend:sha-3da8883
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
