@@ -44,7 +44,7 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: finances-backend-database
+                  name: finances-backend-secrets
                   key: DATABASE_URL
           resources:
             requests:
@@ -81,8 +81,20 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: finances-backend-database
+                  name: finances-backend-secrets
                   key: DATABASE_URL
+            - name: FIREBASE_PROJECT_ID
+              value: financial-control-472211
+            - name: FIREBASE_SERVICE_ACCOUNT
+              valueFrom:
+                secretKeyRef:
+                  name: finances-backend-secrets
+                  key: FIREBASE_SERVICE_ACCOUNT
+            - name: IDENTITY_BOOTSTRAP_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: finances-backend-secrets
+                  key: IDENTITY_BOOTSTRAP_ADMIN_EMAIL
           # /health é liveness puro: não toca em dependência externa, então uma
           # indisponibilidade do banco não faz o kubelet reiniciar o pod.
           livenessProbe:
