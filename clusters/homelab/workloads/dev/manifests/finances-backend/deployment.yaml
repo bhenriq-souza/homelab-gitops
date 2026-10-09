@@ -59,6 +59,37 @@ spec:
             capabilities:
               drop:
                 - ALL
+        # Schema `pgboss` (filas e agendamentos do pg-boss), criado e migrado aqui,
+        # depois das migrations TypeORM: a aplicação o inicia com `migrate: false`
+        # e nunca migra no boot (spec 0017 do backend, INV-0017-09). Sem o schema,
+        # o readiness fica 503 com `checks.jobs: down`. `migrate` é idempotente.
+        - name: jobs-migrate
+          # O pipeline reescreve esta linha com a tag do commit; manter o formato.
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/finances-backend:sha-0778cdc
+          imagePullPolicy: Always
+          command:
+            - node
+            - node_modules/pg-boss/dist/cli.js
+            - migrate
+          env:
+            - name: PGBOSS_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: finances-backend-secrets
+                  key: DATABASE_URL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
       containers:
         - name: finances-backend
           # O pipeline reescreve esta linha com a tag do commit; manter o formato.
