@@ -82,8 +82,11 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
+            # O binario da imagem traz cap_net_bind_service no arquivo: sem ela no bounding
+            # set o exec falha com "operation not permitted". Mesmo ajuste do CoreDNS do k3s.
             capabilities:
               drop: ["ALL"]
+              add: ["NET_BIND_SERVICE"]
           volumeMounts:
             - name: config
               mountPath: /etc/coredns
