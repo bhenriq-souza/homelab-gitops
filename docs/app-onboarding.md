@@ -108,4 +108,17 @@ Pontos que costumam morder:
 
 ## 7. DNS
 
-Aponte `<app>.dev.homelab.local` para o IP do Traefik (`192.168.15.97`) no seu resolvedor local ou no roteador.
+Nada a fazer por app. O CoreDNS de `clusters/homelab/platform/dns/` responde qualquer
+`*.homelab.local` com o IP do Traefik (`192.168.15.97`), então um host novo resolve assim que o
+Ingress existir.
+
+O CoreDNS é autoritativo só para `homelab.local` e não é recursivo: responde `REFUSED` a outras
+zonas. Por isso ele não pode ser o DNS principal de um cliente. Cada cliente encaminha só a zona
+`homelab.local` para `192.168.15.97:53`:
+
+- no Windows, por NRPT;
+- no Linux, por um domínio de roteamento no `systemd-resolved`;
+- em celular e tablet, pelo encaminhamento condicional no roteador, porque eles não têm
+  configuração por zona.
+
+O arquivo de hosts continua valendo como alternativa pontual.
