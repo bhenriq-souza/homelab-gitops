@@ -115,7 +115,7 @@ spec:
                   name: finances-backend-secrets
                   key: DATABASE_URL
             - name: FIREBASE_PROJECT_ID
-              value: financial-control-472211
+              value: dev-financial-control
             - name: FIREBASE_SERVICE_ACCOUNT
               valueFrom:
                 secretKeyRef:
