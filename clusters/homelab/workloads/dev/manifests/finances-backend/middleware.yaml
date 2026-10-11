@@ -1,0 +1,14 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: finances-backend-strip-api
+  namespace: dev-apps
+  labels:
+    app.kubernetes.io/name: finances-backend
+    homelab.io/environment: dev
+spec:
+  # A API é publicada sob /api (ADR-0008 do hub), mas as rotas do backend ficam na raiz.
+  # O Traefik tira o prefixo e envia X-Forwarded-Prefix: /api, que o redirect do Swagger usa.
+  stripPrefix:
+    prefixes:
+      - /api
