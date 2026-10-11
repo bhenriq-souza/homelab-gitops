@@ -97,6 +97,11 @@ spec:
             name: homelab-dns
 ---
 # ServiceLB (klipper) publica a porta 53 no IP do no, como faz com o Traefik.
+# O hostPort 53 do svclb captura a porta 53 de TODO endereco local do no, inclusive o stub
+# 127.0.0.53 do systemd-resolved. Por isso o /etc/resolv.conf do no aponta para
+# /run/systemd/resolve/resolv.conf (DNS do roteador), e nao para o stub-resolv.conf: com o
+# stub, o containerd deixa de resolver o registry e nenhuma imagem nova e baixada
+# (ver docs/app-onboarding.md, secao 7).
 apiVersion: v1
 kind: Service
 metadata:

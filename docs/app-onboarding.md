@@ -122,3 +122,19 @@ zonas. Por isso ele não pode ser o DNS principal de um cliente. Cada cliente en
   configuração por zona.
 
 O arquivo de hosts continua valendo como alternativa pontual.
+
+**O próprio nó do cluster é a exceção.** O `hostPort: 53` com que o ServiceLB publica o CoreDNS
+captura a porta 53 de qualquer endereço local do nó, inclusive o stub `127.0.0.53` do
+`systemd-resolved`. Com o `/etc/resolv.conf` padrão do Ubuntu, que aponta para esse stub, o nó deixa
+de resolver nomes externos: o containerd falha com `lookup <registry>: Try again`, e todo deploy
+novo fica em `ImagePullBackOff`. O `resolvectl query` continua funcionando, porque não passa pela
+porta 53, o que esconde o problema.
+
+O nó usa o arquivo com os DNS do roteador, o mesmo que o k3s já usa para os pods:
+
+```bash
+sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
+getent hosts us-central1-docker.pkg.dev   # deve responder na hora
+```
+
+Refaça isso ao reinstalar o nó ou se algo devolver o symlink para o `stub-resolv.conf`.
