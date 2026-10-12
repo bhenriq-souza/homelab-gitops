@@ -4,5 +4,6 @@ resources:
   - manifests/bootstrap-configmap.yaml
   - manifests/externalsecret-image-pull.yaml
   - manifests/finances-backend
+  - manifests/finances-frontend
   - manifests/myapp
   - manifests/postgresql
