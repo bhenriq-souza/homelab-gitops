@@ -14,7 +14,19 @@ spec:
     - host: finances.dev.homelab.local
       http:
         paths:
-          # O ingress finances-backend (path /) continua até o frontend ocupar a raiz.
+          # A raiz do host é do finances-frontend; aqui só /api, com o stripPrefix.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: finances-backend
+                port:
+                  number: 80
+    # Host alternativo, temporário, para celular e tablet sem DNS de homelab.local:
+    # o nip.io resolve pelo DNS público para o IP do Traefik (spike T-0006-01 do frontend).
+    - host: finances.192.168.15.97.nip.io
+      http:
+        paths:
           - path: /api
             pathType: Prefix
             backend:

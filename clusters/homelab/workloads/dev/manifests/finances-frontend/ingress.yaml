@@ -21,3 +21,15 @@ spec:
                 name: finances-frontend
                 port:
                   number: 80
+    # Host alternativo, temporário, para celular e tablet sem DNS de homelab.local:
+    # o nip.io resolve pelo DNS público para o IP do Traefik (spike T-0006-01 do frontend).
+    - host: finances.192.168.15.97.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: finances-frontend
+                port:
+                  number: 80
