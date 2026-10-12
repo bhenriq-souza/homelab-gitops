@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: finances-frontend-config
+  namespace: dev-apps
+  labels:
+    app.kubernetes.io/name: finances-frontend
+    homelab.io/environment: dev
+data:
+  # Configuração de runtime da SPA (spec 0007 do frontend), servida em /config.js.
+  # A web config do Firebase não é segredo: o navegador de todo usuário a recebe.
+  # Mudou aqui? Atualize a anotação config-hash do deployment para reiniciar o pod
+  # (o subPath não recarrega sozinho).
+  config.js: |
+    window.__FTECH_CONFIG__ = {
+        environment: 'dev',
+        firebase: {
+            apiKey: 'AIzaSyApYTM1oDCKCB-Ec2NmuHYp52Jze4irrxs',
+            authDomain: 'dev-financial-control.firebaseapp.com',
+            projectId: 'dev-financial-control',
+            appId: '1:805955182517:web:652d21a187283fa505c3fc',
+        },
+    };

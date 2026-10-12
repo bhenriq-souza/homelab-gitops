@@ -1,14 +1,14 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: finances-backend
+  name: finances-frontend
   namespace: dev-apps
   labels:
-    app.kubernetes.io/name: finances-backend
+    app.kubernetes.io/name: finances-frontend
     homelab.io/environment: dev
 spec:
-  # ingressClassName é a forma suportada; a annotation kubernetes.io/ingress.class
-  # usada em manifestos mais antigos deste repositório está depreciada.
+  # A raiz do host é do frontend; /api fica com o ingress finances-backend-api (stripPrefix).
+  # O Traefik escolhe o prefixo mais longo (ADR-0008 do hub, spec 0007 do frontend).
   ingressClassName: traefik
   rules:
     - host: finances.dev.homelab.local
@@ -18,6 +18,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: finances-backend
+                name: finances-frontend
                 port:
                   number: 80
