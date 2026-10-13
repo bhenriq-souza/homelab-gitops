@@ -31,7 +31,7 @@ spec:
       containers:
         - name: finances-frontend
           # O pipeline reescreve esta linha com a tag do commit; manter o formato.
-          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/finances-frontend:sha-9e2c796
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/finances-frontend:sha-77e8e54
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
