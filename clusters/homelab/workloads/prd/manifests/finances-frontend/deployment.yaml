@@ -20,7 +20,7 @@ spec:
       annotations:
         # sha256 (16 primeiros) do config.js do ConfigMap: mudar o config muda esta
         # anotação e reinicia o pod, porque o subPath não recarrega sozinho.
-        homelab.io/config-hash: "453e4e5536ec49ca"
+        homelab.io/config-hash: "a6e1f93ed243b1d6"
     spec:
       imagePullSecrets:
         - name: ar-image-pull-secret
