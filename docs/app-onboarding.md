@@ -106,6 +106,28 @@ Pontos que costumam morder:
 - **Rotação:** rodar o script de novo com outra senha reafirma o role; lembre de criar a nova versão
   dos dois secrets e de reiniciar o deployment.
 
+### Em prd
+
+O `prd-apps` tem um PostgreSQL só dele, sem rota TCP pelo Traefik e com o superusuário `postgres`
+no lugar do `appuser`. O script é o mesmo, com outros parâmetros:
+
+```bash
+# Uma vez por cluster: a senha do superusuário de prd
+openssl rand -base64 30 | tr -d '/+=' | head -c 32 \
+  | gcloud secrets create homelab-prd-postgres-password --data-file=- --project homelab-492918
+
+# Por aplicação, depois que o postgresql-0 de prd-apps estiver pronto
+APP_PASSWORD="$(openssl rand -base64 30 | tr -d '/+=' | head -c 32)"
+NAMESPACE=prd-apps ADMIN_USER=postgres ADMIN_DB=postgres APP_PASSWORD="$APP_PASSWORD" \
+  ./scripts/provision-app-database.sh <app>_prd <app>_app
+printf 'postgres://<app>_app:%s@postgresql.prd-apps.svc.cluster.local:5432/<app>_prd' "$APP_PASSWORD" \
+  | gcloud secrets create homelab-prd-<app>-database-url --data-file=- --project homelab-492918
+unset APP_PASSWORD
+```
+
+Acesso de fora do cluster, como uma carga de dados, passa por
+`kubectl -n prd-apps port-forward svc/postgresql 5432:5432`.
+
 ## 7. DNS
 
 Nada a fazer por app. O CoreDNS de `clusters/homelab/platform/dns/` responde qualquer

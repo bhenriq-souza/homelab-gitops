@@ -1,0 +1,157 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finances-backend
+  namespace: prd-apps
+  labels:
+    app.kubernetes.io/name: finances-backend
+    app.kubernetes.io/part-of: workloads-prd
+    homelab.io/environment: prd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: finances-backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: finances-backend
+        homelab.io/environment: prd
+        # Exigida pela NetworkPolicy do PostgreSQL para liberar a porta 5432.
+        homelab.io/database-access: postgresql
+    spec:
+      imagePullSecrets:
+        - name: ar-image-pull-secret
+      # As migrations rodam aqui, e não no boot da aplicação (ADR local 0001 do
+      # backend). O container da app só inicia depois deste sair com sucesso, e
+      # uma migration que falha barra o rollout em vez de virar crash loop: a
+      # réplica anterior continua servindo. `migration:run` é idempotente.
+      initContainers:
+        - name: migrations
+          # O pipeline reescreve esta linha com a tag do commit; manter o formato.
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/finances-backend:sha-f432b00
+          imagePullPolicy: Always
+          command:
+            - node
+            - node_modules/typeorm/cli.js
+            - migration:run
+            - --dataSource
+            - dist/src/platform/database/data-source.js
+          env:
+            - name: APPLICATION_NAME
+              value: finances-control-backend
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: finances-backend-secrets
+                  key: DATABASE_URL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+        # Schema `pgboss` (filas e agendamentos do pg-boss), criado e migrado aqui,
+        # depois das migrations TypeORM: a aplicação o inicia com `migrate: false`
+        # e nunca migra no boot (spec 0017 do backend, INV-0017-09). Sem o schema,
+        # o readiness fica 503 com `checks.jobs: down`. `migrate` é idempotente.
+        - name: jobs-migrate
+          # O pipeline reescreve esta linha com a tag do commit; manter o formato.
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/finances-backend:sha-f432b00
+          imagePullPolicy: Always
+          command:
+            - node
+            - node_modules/pg-boss/dist/cli.js
+            - migrate
+          env:
+            - name: PGBOSS_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: finances-backend-secrets
+                  key: DATABASE_URL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      containers:
+        - name: finances-backend
+          # O pipeline reescreve esta linha com a tag do commit; manter o formato.
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/finances-backend:sha-f432b00
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: APPLICATION_NAME
+              value: finances-control-backend
+            - name: APPLICATION_VERSION
+              value: "0.0.0"
+            - name: ENV
+              value: prd
+            - name: SERVER_PORT
+              value: "3000"
+            - name: LOG_LEVEL
+              value: info
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: finances-backend-secrets
+                  key: DATABASE_URL
+            - name: FIREBASE_PROJECT_ID
+              value: prd-financial-control
+            - name: FIREBASE_SERVICE_ACCOUNT
+              valueFrom:
+                secretKeyRef:
+                  name: finances-backend-secrets
+                  key: FIREBASE_SERVICE_ACCOUNT
+            - name: IDENTITY_BOOTSTRAP_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: finances-backend-secrets
+                  key: IDENTITY_BOOTSTRAP_ADMIN_EMAIL
+          # /health é liveness puro: não toca em dependência externa, então uma
+          # indisponibilidade do banco não faz o kubelet reiniciar o pod.
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          # /health/ready sonda o banco. Banco fora tira o pod do balanceamento
+          # sem reiniciá-lo, e a própria probe reabre a conexão quando ele volta.
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL

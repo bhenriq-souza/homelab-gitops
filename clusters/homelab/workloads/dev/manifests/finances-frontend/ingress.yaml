@@ -23,7 +23,8 @@ spec:
                   number: 80
     # Host alternativo, temporário, para celular e tablet sem DNS de homelab.local:
     # o nip.io resolve pelo DNS público para o IP do Traefik (spike T-0006-01 do frontend).
-    - host: finances.192.168.15.97.nip.io
+    # O nome sem o .dev é do prd, que é o que o responsável usa no dia a dia.
+    - host: finances.dev.192.168.15.97.nip.io
       http:
         paths:
           - path: /
