@@ -15,9 +15,9 @@ data:
     window.__FTECH_CONFIG__ = {
         environment: 'prd',
         firebase: {
-            apiKey: 'REPLACE_WITH_PRD_API_KEY',
+            apiKey: 'AIzaSyAy2HU63iFJqEdV67gyYcg6ZMLLqTqGHhE',
             authDomain: 'prd-financial-control.firebaseapp.com',
             projectId: 'prd-financial-control',
-            appId: 'REPLACE_WITH_PRD_APP_ID',
+            appId: '1:1076522106327:web:74106d8f66027dc89f9f92',
         },
     };
