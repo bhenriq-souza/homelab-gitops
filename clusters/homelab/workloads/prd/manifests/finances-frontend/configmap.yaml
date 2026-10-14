@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: finances-frontend-config
+  namespace: prd-apps
+  labels:
+    app.kubernetes.io/name: finances-frontend
+    homelab.io/environment: prd
+data:
+  # Configuração de runtime da SPA (spec 0007 do frontend), servida em /config.js.
+  # A web config do Firebase não é segredo: o navegador de todo usuário a recebe.
+  # Mudou aqui? Atualize a anotação config-hash do deployment para reiniciar o pod
+  # (o subPath não recarrega sozinho).
+  config.js: |
+    window.__FTECH_CONFIG__ = {
+        environment: 'prd',
+        firebase: {
+            apiKey: 'REPLACE_WITH_PRD_API_KEY',
+            authDomain: 'prd-financial-control.firebaseapp.com',
+            projectId: 'prd-financial-control',
+            appId: 'REPLACE_WITH_PRD_APP_ID',
+        },
+    };

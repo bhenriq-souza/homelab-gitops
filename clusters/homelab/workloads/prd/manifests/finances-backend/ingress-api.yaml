@@ -1,0 +1,36 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: finances-backend-api
+  namespace: prd-apps
+  labels:
+    app.kubernetes.io/name: finances-backend
+    homelab.io/environment: prd
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: prd-apps-finances-backend-strip-api@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: finances.homelab.local
+      http:
+        paths:
+          # A raiz do host é do finances-frontend; aqui só /api, com o stripPrefix.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: finances-backend
+                port:
+                  number: 80
+    # Host do celular e do tablet, que não resolvem homelab.local: o nip.io responde
+    # pelo DNS público com o IP do Traefik. O dev usa finances.dev.192.168.15.97.nip.io.
+    - host: finances.192.168.15.97.nip.io
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: finances-backend
+                port:
+                  number: 80

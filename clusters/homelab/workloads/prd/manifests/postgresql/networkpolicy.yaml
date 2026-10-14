@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgresql-prd-restrict-access
+  namespace: prd-apps
+  labels:
+    app.kubernetes.io/name: postgresql
+    homelab.io/environment: prd
+    homelab.io/component: database
+spec:
+  # Diferente de dev, o banco de prd não sai do cluster pelo Traefik: só os pods do
+  # próprio namespace com o label abaixo chegam à 5432. Acesso de fora, como a carga
+  # inicial, passa por kubectl port-forward.
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              homelab.io/database-access: postgresql
+      ports:
+        - protocol: TCP
+          port: 5432

@@ -72,7 +72,7 @@
 | `postgresql-auth` | Secret (ESO) | ✅ Gerenciado via ExternalSecret | Credenciais do GCP Secret Manager |
 | `myapp` | Deployment | ✅ Definido | App de teste para validação de pipeline |
 
-> `prd-apps`: apenas bootstrap configmap e imagePullSecret definidos; workloads ainda não promovidos.
+> `prd-apps`: PostgreSQL próprio, `finances-backend` e `finances-frontend` (FC-010 do finances-control), em `finances.homelab.local` e `finances.192.168.15.97.nip.io`.
 
 ---
 
