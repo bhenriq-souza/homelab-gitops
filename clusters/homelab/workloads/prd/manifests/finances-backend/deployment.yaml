@@ -29,7 +29,7 @@ spec:
       initContainers:
         - name: migrations
           # O pipeline reescreve esta linha com a tag do commit; manter o formato.
-          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/finances-backend:sha-250bdfe
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/finances-backend:sha-f11b95d
           imagePullPolicy: Always
           command:
             - node
@@ -64,7 +64,7 @@ spec:
         # o readiness fica 503 com `checks.jobs: down`. `migrate` é idempotente.
         - name: jobs-migrate
           # O pipeline reescreve esta linha com a tag do commit; manter o formato.
-          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/finances-backend:sha-250bdfe
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/finances-backend:sha-f11b95d
           imagePullPolicy: Always
           command:
             - node
@@ -92,7 +92,7 @@ spec:
       containers:
         - name: finances-backend
           # O pipeline reescreve esta linha com a tag do commit; manter o formato.
-          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/finances-backend:sha-250bdfe
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/finances-backend:sha-f11b95d
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
