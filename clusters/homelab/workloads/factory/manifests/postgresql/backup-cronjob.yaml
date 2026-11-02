@@ -32,10 +32,19 @@ spec:
                 - -c
                 - |
                   set -eu
+                  host=postgresql.factory.svc.cluster.local
+                  # a NetworkPolicy leva alguns segundos para liberar o IP de um pod novo
+                  i=0
+                  until pg_isready -h "$host" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -q; do
+                    i=$((i + 1)); [ "$i" -ge 30 ] && { echo "banco indisponível após 60s"; exit 1; }
+                    sleep 2
+                  done
                   out="/backups/factory-$(date -u +%Y%m%dT%H%M%SZ).dump"
-                  pg_dump -h postgresql.factory.svc.cluster.local -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc -f "$out.tmp"
+                  trap 'rm -f "$out.tmp"' EXIT
+                  pg_dump -h "$host" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc -f "$out.tmp"
                   mv "$out.tmp" "$out"
                   find /backups -name 'factory-*.dump' -mtime +7 -delete
+                  find /backups -name 'factory-*.dump.tmp' -delete
                   ls -lh /backups
               env:
                 - name: PGPASSWORD
