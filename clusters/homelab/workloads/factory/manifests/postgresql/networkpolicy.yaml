@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgresql-factory-restrict-access
+  namespace: factory
+  labels:
+    app.kubernetes.io/name: postgresql
+    homelab.io/environment: factory
+    homelab.io/component: database
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # LAN (orquestrador e runner na ai-lab) entra pelo entrypoint factorypg do Traefik
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+        # pods do próprio namespace com acesso explícito (backup e, depois, o orquestrador)
+        - podSelector:
+            matchLabels:
+              homelab.io/database-access: postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
