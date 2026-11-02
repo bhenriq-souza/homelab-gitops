@@ -6,3 +6,4 @@ resources:
   - applications/shared-secrets-config.yaml
   - applications/dev-workloads.yaml
   - applications/prd-workloads.yaml
+  - applications/factory.yaml

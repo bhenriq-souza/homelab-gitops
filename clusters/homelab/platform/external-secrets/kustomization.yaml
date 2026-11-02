@@ -4,5 +4,6 @@ resources:
   - manifests/namespace.yaml
   - manifests/clustersecretstore-gcp-dev.yaml
   - manifests/clustersecretstore-gcp-prd.yaml
+  - manifests/clustersecretstore-gcp-factory.yaml
   - manifests/rbac-externalsecret-manager-dev.yaml
   - manifests/rbac-externalsecret-manager-prd.yaml

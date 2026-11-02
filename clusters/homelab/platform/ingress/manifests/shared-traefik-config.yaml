@@ -15,6 +15,12 @@ spec:
         port: 5432
         exposedPort: 5432
         protocol: TCP
+      factorypg:
+        expose:
+          default: true
+        port: 5433
+        exposedPort: 5433
+        protocol: TCP
     service:
       spec:
         loadBalancerSourceRanges:
