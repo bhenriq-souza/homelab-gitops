@@ -1,0 +1,186 @@
+# Dashboard "FT Coders" (spec 0022). O sidecar do Grafana do kube-prometheus-stack lê ConfigMaps com
+# grafana_dashboard=1 em todos os namespaces (NAMESPACE=ALL, conferido em 08/11/2026).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ft-coders-dashboard
+  namespace: factory
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/name: ft-coders-orchestrator
+    homelab.io/environment: factory
+    homelab.io/component: observability
+data:
+  ft-coders.json: |
+    {
+      "title": "FT Coders",
+      "uid": "ft-coders",
+      "tags": [
+        "ft-coders",
+        "factory"
+      ],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "refresh": "10s",
+      "time": {
+        "from": "now-3h",
+        "to": "now"
+      },
+      "templating": {
+        "list": [
+          {
+            "name": "datasource",
+            "label": "Loki",
+            "type": "datasource",
+            "query": "loki",
+            "current": {}
+          },
+          {
+            "name": "tenant",
+            "label": "tenant",
+            "type": "textbox",
+            "query": ".*",
+            "current": {
+              "text": ".*",
+              "value": ".*"
+            }
+          },
+          {
+            "name": "run_id",
+            "label": "run_id",
+            "type": "textbox",
+            "query": ".*",
+            "current": {
+              "text": ".*",
+              "value": ".*"
+            }
+          }
+        ]
+      },
+      "panels": [
+        {
+          "type": "logs",
+          "title": "Erros (orquestrador e runner)",
+          "datasource": {
+            "type": "loki",
+            "uid": "${datasource}"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 24,
+            "h": 7
+          },
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "loki",
+                "uid": "${datasource}"
+              },
+              "expr": "{app=\"ft-coders\"} | json | level=\"error\" | tenant=~\"$tenant\" | run_id=~\"$run_id\"",
+              "queryType": "range"
+            }
+          ]
+        },
+        {
+          "type": "logs",
+          "title": "Eventos do agente (agent.event)",
+          "datasource": {
+            "type": "loki",
+            "uid": "${datasource}"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 7,
+            "w": 24,
+            "h": 10
+          },
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "loki",
+                "uid": "${datasource}"
+              },
+              "expr": "{app=\"ft-coders\", process=\"runner\"} | json | tenant=~\"$tenant\" | run_id=~\"$run_id\" | event=\"agent.event\"",
+              "queryType": "range"
+            }
+          ]
+        },
+        {
+          "type": "logs",
+          "title": "Orquestrador",
+          "datasource": {
+            "type": "loki",
+            "uid": "${datasource}"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 17,
+            "w": 24,
+            "h": 10
+          },
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "loki",
+                "uid": "${datasource}"
+              },
+              "expr": "{app=\"ft-coders\", process=\"orchestrator\"} | json | tenant=~\"$tenant\" | run_id=~\"$run_id\"",
+              "queryType": "range"
+            }
+          ]
+        },
+        {
+          "type": "logs",
+          "title": "Runner",
+          "datasource": {
+            "type": "loki",
+            "uid": "${datasource}"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 27,
+            "w": 24,
+            "h": 10
+          },
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "loki",
+                "uid": "${datasource}"
+              },
+              "expr": "{app=\"ft-coders\", process=\"runner\"} | json | tenant=~\"$tenant\" | run_id=~\"$run_id\"",
+              "queryType": "range"
+            }
+          ]
+        }
+      ]
+    }
