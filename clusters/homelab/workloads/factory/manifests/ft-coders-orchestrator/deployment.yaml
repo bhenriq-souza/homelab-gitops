@@ -1,0 +1,149 @@
+# Orquestrador da FT Coders (spec 0022 do ft-coders): polling do Azure Boards, escrita no tracker e push
+# dos bundles. Uma réplica só, com Recreate: nunca dois pods ao mesmo tempo, e o advisory lock
+# `orchestrator:singleton` segura um orquestrador manual que rode ao lado. O runner fica na ai-lab (D8).
+# replicas: 0 até o go-live, que é um PR à parte depois da primeira imagem publicada.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ft-coders-orchestrator
+  namespace: factory
+  labels:
+    app.kubernetes.io/name: ft-coders-orchestrator
+    app.kubernetes.io/part-of: ft-coders
+    homelab.io/environment: factory
+    homelab.io/component: orchestrator
+spec:
+  replicas: 0
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ft-coders-orchestrator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ft-coders-orchestrator
+        app.kubernetes.io/part-of: ft-coders
+        # o Alloy do cluster vira `app` e `process` em labels do Loki (spec 0022)
+        app: ft-coders
+        homelab.io/process: orchestrator
+        # liberado pela NetworkPolicy do Postgres do namespace
+        homelab.io/database-access: postgresql
+    spec:
+      imagePullSecrets:
+        - name: ar-image-pull-secret
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      # a migração roda aqui, serializada pelo advisory lock `migrations`; o runner nunca migra
+      initContainers:
+        - name: migrate
+          # O pipeline reescreve as linhas `image:` com a tag do commit; manter o formato.
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/ft-coders-orchestrator:sha-0000000
+          args: ["db", "migrate"]
+          env:
+            - name: FACTORY_DATABASE_URL
+              value: postgresql://factory@postgresql.factory.svc:5432/factory
+            # a senha vai pelo PGPASSWORD (libpq): o DSN fica sem segredo e sem escape de URL
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-auth
+                  key: POSTGRES_PASSWORD
+            - name: FACTORY_SECRET_BACKEND
+              value: gcp
+            - name: FACTORY_GCP_PROJECT
+              value: homelab-492918
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /var/run/secrets/gcp/key.json
+            - name: FACTORY_LOG_JSON
+              value: "true"
+          volumeMounts:
+            - name: work
+              mountPath: /var/lib/ft-coders
+            - name: tmp
+              mountPath: /tmp
+            - name: gcp-key
+              mountPath: /var/run/secrets/gcp
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      containers:
+        - name: orchestrator
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/ft-coders-orchestrator:sha-0000000
+          args: ["orchestrator"]
+          env:
+            - name: FACTORY_DATABASE_URL
+              value: postgresql://factory@postgresql.factory.svc:5432/factory
+            # a senha vai pelo PGPASSWORD (libpq): o DSN fica sem segredo e sem escape de URL
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-auth
+                  key: POSTGRES_PASSWORD
+            - name: FACTORY_SECRET_BACKEND
+              value: gcp
+            - name: FACTORY_GCP_PROJECT
+              value: homelab-492918
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /var/run/secrets/gcp/key.json
+            - name: FACTORY_LOG_JSON
+              value: "true"
+          volumeMounts:
+            - name: work
+              mountPath: /var/lib/ft-coders
+            - name: tmp
+              mountPath: /tmp
+            - name: gcp-key
+              mountPath: /var/run/secrets/gcp
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          # heartbeat gravado a cada ciclo e durante o standby; 15 min sem ele = processo travado
+          livenessProbe:
+            exec:
+              command: ["/app/.venv/bin/factory", "health", "--max-age", "900"]
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 2
+      # SIGTERM: o ciclo em andamento termina (escritas idempotentes); folga para o push em curso
+      terminationGracePeriodSeconds: 330
+      volumes:
+        - name: work
+          emptyDir:
+            sizeLimit: 2Gi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: gcp-key
+          secret:
+            secretName: ft-coders-orchestrator-gcp
+            defaultMode: 0400

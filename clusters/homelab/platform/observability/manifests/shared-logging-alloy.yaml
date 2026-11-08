@@ -89,6 +89,13 @@ data:
         target_label  = "app"
       }
 
+      // papel do processo dentro do app (ex.: FT Coders: orchestrator | runner), pela label homelab.io/process
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_homelab_io_process"]
+        regex         = "(.+)"
+        target_label  = "process"
+      }
+
       rule {
         source_labels = ["__meta_kubernetes_namespace"]
         regex         = "(dev|prd)-.*"
