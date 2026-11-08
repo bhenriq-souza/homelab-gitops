@@ -1,7 +1,7 @@
 # Orquestrador da FT Coders (spec 0022 do ft-coders): polling do Azure Boards, escrita no tracker e push
 # dos bundles. Uma réplica só, com Recreate: nunca dois pods ao mesmo tempo, e o advisory lock
 # `orchestrator:singleton` segura um orquestrador manual que rode ao lado. O runner fica na ai-lab (D8).
-# replicas: 0 até o go-live, que é um PR à parte depois da primeira imagem publicada.
+# go-live em 08/11/2026 (spec 0022): uma réplica; parar = replicas: 0 ou pausar o tenant (runbook do ft-coders).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -13,7 +13,7 @@ metadata:
     homelab.io/environment: factory
     homelab.io/component: orchestrator
 spec:
-  replicas: 0
+  replicas: 1
   revisionHistoryLimit: 3
   strategy:
     type: Recreate
