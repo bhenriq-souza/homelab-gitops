@@ -37,6 +37,12 @@ spec:
                   period: 24h
           limits_config:
             retention_period: 168h
+            # FT Coders (spec 0024): 90 dias para os logs da fábrica, que alimentam o histórico
+            # da API (/api/v1/logs) e a reprodução dos runs. O resto do cluster continua em 7 dias.
+            retention_stream:
+              - selector: '{app="ft-coders"}'
+                priority: 1
+                period: 2160h
           compactor:
             retention_enabled: true
             delete_request_store: filesystem
