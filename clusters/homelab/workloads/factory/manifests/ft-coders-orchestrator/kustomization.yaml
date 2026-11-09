@@ -6,3 +6,8 @@ resources:
   - deployment.yaml
   - networkpolicy.yaml
   - dashboard-configmap.yaml
+  # API de leitura (spec 0024): o Deployment está em deployment.yaml, junto do orquestrador
+  - api-externalsecret.yaml
+  - api-service.yaml
+  - api-ingress.yaml
+  - api-networkpolicy.yaml

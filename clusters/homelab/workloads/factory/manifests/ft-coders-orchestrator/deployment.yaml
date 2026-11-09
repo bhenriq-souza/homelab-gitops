@@ -147,3 +147,106 @@ spec:
           secret:
             secretName: ft-coders-orchestrator-gcp
             defaultMode: 0400
+---
+# API de leitura da FT Coders (spec 0024 do ft-coders): só lê o Postgres (login ft_coders_api, role
+# ft_coders_read) e o Loki. Fica neste arquivo de propósito: o pipeline reescreve as linhas `image:` só aqui,
+# e a API sobe sempre na mesma versão do orquestrador (o mesmo schema). Sem autenticação até a tarefa 3.5:
+# acesso só pelo Ingress interno e a NetworkPolicy aceita entrada só do Traefik (INV-0024-10).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ft-coders-api
+  namespace: factory
+  labels:
+    app.kubernetes.io/name: ft-coders-api
+    app.kubernetes.io/part-of: ft-coders
+    homelab.io/environment: factory
+    homelab.io/component: api
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ft-coders-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ft-coders-api
+        app.kubernetes.io/part-of: ft-coders
+        # o Alloy do cluster vira `app` e `process` em labels do Loki
+        app: ft-coders
+        homelab.io/process: api
+        # liberado pela NetworkPolicy do Postgres do namespace
+        homelab.io/database-access: postgresql
+    spec:
+      imagePullSecrets:
+        - name: ar-image-pull-secret
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          # O pipeline reescreve as linhas `image:` com a tag do commit; manter o formato.
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/ft-coders-orchestrator:sha-b83c679
+          args: ["api"]
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: FACTORY_DATABASE_URL
+              value: postgresql://ft_coders_api@postgresql.factory.svc:5432/factory
+            # a senha vai pelo PGPASSWORD (libpq), como no orquestrador
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ft-coders-api-db
+                  key: password
+            - name: FACTORY_LOKI_URL
+              value: http://loki.observability.svc:3100
+            - name: FACTORY_API_HOST
+              value: 0.0.0.0
+            - name: FACTORY_API_PORT
+              value: "8000"
+            - name: FACTORY_LOG_JSON
+              value: "true"
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 384Mi
+          # pronto = Postgres respondendo (/api/v1/health); vivo = o processo aceita conexão. Separados para
+          # uma queda do Postgres tirar a API do Service sem reiniciá-la em laço.
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 3
+      # os streams SSE são cortados no SIGTERM; o EventSource reconecta com Last-Event-ID
+      terminationGracePeriodSeconds: 10
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
