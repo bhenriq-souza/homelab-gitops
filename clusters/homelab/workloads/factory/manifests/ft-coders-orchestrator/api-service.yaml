@@ -1,0 +1,18 @@
+# API de leitura da FT Coders (spec 0024 do ft-coders).
+apiVersion: v1
+kind: Service
+metadata:
+  name: ft-coders-api
+  namespace: factory
+  labels:
+    app.kubernetes.io/name: ft-coders-api
+    homelab.io/environment: factory
+    homelab.io/component: api
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ft-coders-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

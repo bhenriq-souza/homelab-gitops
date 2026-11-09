@@ -1,0 +1,25 @@
+# Só /api: a raiz do host fica para a UI (tarefas 3.3 e 3.5), como no FT Finance. Sem stripPrefix, porque
+# a API já serve em /api/v1. Só HTTP: o TLS do ingress fica com a pendência do certificado (ft-coders#48).
+# O CoreDNS do homelab responde *.homelab.local para o Traefik; nada é exposto fora da LAN (INV-0024-10).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ft-coders-api
+  namespace: factory
+  labels:
+    app.kubernetes.io/name: ft-coders-api
+    homelab.io/environment: factory
+    homelab.io/component: api
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: ft-coders.homelab.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: ft-coders-api
+                port:
+                  number: 80
