@@ -1,0 +1,18 @@
+# UI da FT Coders (spec 0007 do ft-coders-frontend).
+apiVersion: v1
+kind: Service
+metadata:
+  name: ft-coders-frontend
+  namespace: factory
+  labels:
+    app.kubernetes.io/name: ft-coders-frontend
+    homelab.io/environment: factory
+    homelab.io/component: frontend
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ft-coders-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

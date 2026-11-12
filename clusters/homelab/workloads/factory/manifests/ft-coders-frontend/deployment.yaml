@@ -1,0 +1,78 @@
+# UI da FT Coders (spec 0007 do ft-coders-frontend): estática em nginx unprivileged, na mesma origem da
+# API (/api é do Ingress da API). Sem banco, sem segredo além do pull da imagem.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ft-coders-frontend
+  namespace: factory
+  labels:
+    app.kubernetes.io/name: ft-coders-frontend
+    homelab.io/environment: factory
+    homelab.io/component: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ft-coders-frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ft-coders-frontend
+        homelab.io/environment: factory
+        homelab.io/component: frontend
+      annotations:
+        # sha256 do config.js do configmap.yaml: muda junto com ele e reinicia o pod
+        homelab.io/config-hash: "5fa6a6cc305c18e550c5e73f89d222f2bdf0289b39f10549bcc5bd9e093f052f"
+    spec:
+      # o mesmo secret de pull do orquestrador, neste namespace (externalsecret-image-pull.yaml dele)
+      imagePullSecrets:
+        - name: ar-image-pull-secret
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: nginx
+          # O pipeline reescreve a linha image: com a tag do commit; manter o formato.
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/ft-coders-frontend:sha-9aa4ea9
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: config
+              mountPath: /usr/share/nginx/html/config.js
+              subPath: config.js
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: ft-coders-frontend-config
+        - name: tmp
+          emptyDir: {}

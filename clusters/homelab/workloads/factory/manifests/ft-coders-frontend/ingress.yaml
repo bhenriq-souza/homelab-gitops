@@ -1,0 +1,24 @@
+# Raiz do host para a UI; /api fica com o Ingress da API (ft-coders-api), que vence pelo prefixo mais
+# longo. Só HTTP, como a API: o TLS fica com a pendência do certificado (ft-coders#48).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ft-coders-frontend
+  namespace: factory
+  labels:
+    app.kubernetes.io/name: ft-coders-frontend
+    homelab.io/environment: factory
+    homelab.io/component: frontend
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: ft-coders.homelab.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ft-coders-frontend
+                port:
+                  number: 80
