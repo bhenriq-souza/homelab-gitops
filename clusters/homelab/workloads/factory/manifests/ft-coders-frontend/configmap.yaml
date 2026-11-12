@@ -1,0 +1,15 @@
+# Configuração de runtime da UI (spec 0003 e 0007 do ft-coders-frontend), servida em /config.js. A imagem
+# é a mesma em qualquer ambiente; o ambiente só existe aqui. Mudou este arquivo? Atualize a anotação
+# homelab.io/config-hash do deployment.yaml (sha256 do config.js), para o pod reiniciar.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ft-coders-frontend-config
+  namespace: factory
+  labels:
+    app.kubernetes.io/name: ft-coders-frontend
+    homelab.io/environment: factory
+    homelab.io/component: frontend
+data:
+  config.js: |
+    window.__FTCODERS_CONFIG__ = { environment: 'homelab', links: { grafana: 'http://grafana.homelab.local' } };
