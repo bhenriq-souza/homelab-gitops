@@ -1,4 +1,5 @@
-# Dashboard "FT Coders" (spec 0022). O sidecar do Grafana do kube-prometheus-stack lê ConfigMaps com
+# Dashboard "FT Coders" (spec 0022): visão agregada e de operação. Postgres (datasource ft-coders-pg) para runs, custo e eventos;
+# Loki para erros, agente e logs. O sidecar do Grafana do kube-prometheus-stack lê ConfigMaps com
 # grafana_dashboard=1 em todos os namespaces (NAMESPACE=ALL, conferido em 08/11/2026).
 apiVersion: v1
 kind: ConfigMap
@@ -21,11 +22,12 @@ data:
       ],
       "timezone": "browser",
       "schemaVersion": 39,
-      "refresh": "10s",
+      "refresh": "30s",
       "time": {
-        "from": "now-3h",
+        "from": "now-24h",
         "to": "now"
       },
+      "editable": false,
       "templating": {
         "list": [
           {
@@ -38,76 +40,547 @@ data:
           {
             "name": "tenant",
             "label": "tenant",
-            "type": "textbox",
-            "query": ".*",
-            "current": {
-              "text": ".*",
-              "value": ".*"
-            }
+            "type": "query",
+            "datasource": {
+              "type": "grafana-postgresql-datasource",
+              "uid": "ft-coders-pg"
+            },
+            "query": "select id from tenant order by id",
+            "definition": "select id from tenant order by id",
+            "refresh": 1,
+            "sort": 1,
+            "multi": true,
+            "includeAll": true,
+            "current": {},
+            "options": []
           },
           {
-            "name": "run_id",
-            "label": "run_id",
-            "type": "textbox",
-            "query": ".*",
+            "name": "stage",
+            "label": "stage",
+            "type": "custom",
+            "query": "triage,spec,implement,review,verify,card",
+            "multi": true,
+            "includeAll": true,
             "current": {
-              "text": ".*",
-              "value": ".*"
-            }
+              "selected": true,
+              "text": [
+                "All"
+              ],
+              "value": [
+                "$__all"
+              ]
+            },
+            "options": [
+              {
+                "text": "triage",
+                "value": "triage",
+                "selected": false
+              },
+              {
+                "text": "spec",
+                "value": "spec",
+                "selected": false
+              },
+              {
+                "text": "implement",
+                "value": "implement",
+                "selected": false
+              },
+              {
+                "text": "review",
+                "value": "review",
+                "selected": false
+              },
+              {
+                "text": "verify",
+                "value": "verify",
+                "selected": false
+              },
+              {
+                "text": "card",
+                "value": "card",
+                "selected": false
+              }
+            ]
+          },
+          {
+            "name": "run",
+            "label": "run",
+            "type": "query",
+            "datasource": {
+              "type": "grafana-postgresql-datasource",
+              "uid": "ft-coders-pg"
+            },
+            "query": "select format('%s · %s · %s · %s', r.stage, r.external_id, r.status, to_char(r.started_at at time zone 'America/Sao_Paulo', 'DD/MM HH24:MI')) as __text,\n  r.id::text as __value\nfrom run r\nwhere r.tenant_id in ($tenant) and r.stage in ($stage)\norder by r.started_at desc\nlimit 100",
+            "definition": "select format('%s · %s · %s · %s', r.stage, r.external_id, r.status, to_char(r.started_at at time zone 'America/Sao_Paulo', 'DD/MM HH24:MI')) as __text,\n  r.id::text as __value\nfrom run r\nwhere r.tenant_id in ($tenant) and r.stage in ($stage)\norder by r.started_at desc\nlimit 100",
+            "refresh": 2,
+            "sort": 1,
+            "multi": false,
+            "includeAll": false,
+            "current": {},
+            "options": []
           }
         ]
       },
       "panels": [
         {
-          "type": "logs",
-          "title": "Erros (orquestrador e runner)",
-          "datasource": {
-            "type": "loki",
-            "uid": "${datasource}"
-          },
+          "type": "row",
+          "title": "Visão geral (Postgres)",
+          "id": 1,
+          "collapsed": false,
           "gridPos": {
             "x": 0,
             "y": 0,
             "w": 24,
+            "h": 1
+          },
+          "panels": []
+        },
+        {
+          "id": 2,
+          "type": "bargauge",
+          "title": "Runs por status",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "ft-coders-pg"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "ft-coders-pg"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "select status, count(*) as runs\nfrom run\nwhere $__timeFilter(started_at) and tenant_id in ($tenant) and stage in ($stage)\ngroup by status\norder by runs desc"
+            }
+          ],
+          "gridPos": {
+            "x": 0,
+            "y": 1,
+            "w": 6,
             "h": 7
           },
+          "description": "Fonte: run. Período, tenant e stage dos filtros.",
           "options": {
-            "showTime": true,
-            "wrapLogMessage": true,
-            "sortOrder": "Descending",
-            "enableLogDetails": true
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "reduceOptions": {
+              "values": true,
+              "calcs": [],
+              "fields": "/^runs$/"
+            },
+            "namePlacement": "left"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "min": 0,
+              "decimals": 0
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 3,
+          "type": "bargauge",
+          "title": "Custo no período (US$) por base de cálculo",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "ft-coders-pg"
           },
           "targets": [
             {
               "refId": "A",
               "datasource": {
-                "type": "loki",
-                "uid": "${datasource}"
+                "type": "grafana-postgresql-datasource",
+                "uid": "ft-coders-pg"
               },
-              "expr": "{app=\"ft-coders\"} | json | level=\"error\" | tenant=~\"$tenant\" | run_id=~\"$run_id\"",
-              "queryType": "range"
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "select coalesce(cost_basis, 'sem base') as cost_basis, sum(cost_usd) as cost_usd\nfrom run\nwhere $__timeFilter(started_at) and tenant_id in ($tenant) and stage in ($stage)\ngroup by 1\norder by cost_usd desc"
             }
-          ]
+          ],
+          "gridPos": {
+            "x": 6,
+            "y": 1,
+            "w": 6,
+            "h": 7
+          },
+          "description": "Fonte: run.cost_usd. cost_basis: billed, api_list_price ou subscription_notional (nocional não é cobrança).",
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "reduceOptions": {
+              "values": true,
+              "calcs": [],
+              "fields": "/^cost_usd$/"
+            },
+            "namePlacement": "left"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "min": 0,
+              "unit": "currencyUSD",
+              "decimals": 2
+            },
+            "overrides": []
+          }
         },
         {
+          "id": 4,
+          "type": "table",
+          "title": "Turnos por stage",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "ft-coders-pg"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "ft-coders-pg"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "select stage, count(*) as runs, coalesce(sum(num_turns), 0) as turns, round(avg(num_turns), 1) as avg_turns\nfrom run\nwhere $__timeFilter(started_at) and tenant_id in ($tenant) and stage in ($stage)\ngroup by stage\norder by turns desc"
+            }
+          ],
+          "gridPos": {
+            "x": 12,
+            "y": 1,
+            "w": 6,
+            "h": 7
+          },
+          "description": "Fonte: run.num_turns."
+        },
+        {
+          "id": 5,
+          "type": "barchart",
+          "title": "Duração por stage: p50 e p95 (s)",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "ft-coders-pg"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "ft-coders-pg"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "select stage,\n  percentile_cont(0.5) within group (order by duration_ms) / 1000.0 as p50_s,\n  percentile_cont(0.95) within group (order by duration_ms) / 1000.0 as p95_s\nfrom run\nwhere $__timeFilter(started_at) and tenant_id in ($tenant) and stage in ($stage) and duration_ms is not null\ngroup by stage\norder by stage"
+            }
+          ],
+          "gridPos": {
+            "x": 18,
+            "y": 1,
+            "w": 6,
+            "h": 7
+          },
+          "description": "Fonte: run.duration_ms.",
+          "options": {
+            "xField": "stage",
+            "orientation": "horizontal",
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            },
+            "showValue": "auto"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "decimals": 1,
+              "min": 0
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 6,
+          "type": "bargauge",
+          "title": "Checks por status e taxa (%)",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "ft-coders-pg"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "ft-coders-pg"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "select status, n as checks, round(100.0 * n / sum(n) over (), 1) as pct\nfrom (\n  select coalesce(data->>'status', 'sem status') as status, count(*) as n\n  from event\n  where $__timeFilter(created_at) and tenant_id in ($tenant) and kind in ('implement.check', 'spec.check')\n    and split_part(kind, '.', 1) in ($stage)\n  group by 1\n) s\norder by n desc"
+            }
+          ],
+          "gridPos": {
+            "x": 0,
+            "y": 8,
+            "w": 12,
+            "h": 6
+          },
+          "description": "Fonte: event (implement.check e spec.check), campo data.status (pass, fail, error). A taxa de pass e a de erro saem do mesmo conjunto por status.",
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "reduceOptions": {
+              "values": true,
+              "calcs": [],
+              "fields": "/^pct$/"
+            },
+            "namePlacement": "left"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "min": 0,
+              "max": 100,
+              "unit": "percent"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 7,
+          "type": "timeseries",
+          "title": "Custo por dia (US$)",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "ft-coders-pg"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "ft-coders-pg"
+              },
+              "editorMode": "code",
+              "format": "time_series",
+              "rawQuery": true,
+              "rawSql": "select date_trunc('day', started_at) as time, sum(cost_usd) as cost_usd\nfrom run\nwhere $__timeFilter(started_at) and tenant_id in ($tenant) and stage in ($stage)\ngroup by 1\norder by 1"
+            }
+          ],
+          "gridPos": {
+            "x": 12,
+            "y": 8,
+            "w": 12,
+            "h": 6
+          },
+          "description": "Fonte: run.cost_usd.",
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyUSD",
+              "custom": {
+                "drawStyle": "bars",
+                "fillOpacity": 60
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "row",
+          "title": "Runs",
+          "id": 8,
+          "collapsed": false,
+          "gridPos": {
+            "x": 0,
+            "y": 14,
+            "w": 24,
+            "h": 1
+          },
+          "panels": []
+        },
+        {
+          "id": 9,
+          "type": "table",
+          "title": "Runs do período",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "ft-coders-pg"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "ft-coders-pg"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "select r.started_at as \"início\", r.tenant_id as tenant, r.external_id as item, r.stage, r.status,\n  r.num_turns as turnos, r.cost_usd as \"custo (US$)\", r.cost_basis as base, round(r.duration_ms / 1000.0, 1) as \"duração (s)\",\n  r.id::text as run_id\nfrom run r\nwhere $__timeFilter(r.started_at) and r.tenant_id in ($tenant) and r.stage in ($stage)\norder by r.started_at desc\nlimit 200"
+            }
+          ],
+          "gridPos": {
+            "x": 0,
+            "y": 15,
+            "w": 24,
+            "h": 10
+          },
+          "description": "Clique no run_id: selecionar neste dashboard ou abrir na API.",
+          "options": {
+            "showHeader": true,
+            "cellHeight": "sm"
+          },
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "run_id"
+                },
+                "properties": [
+                  {
+                    "id": "links",
+                    "value": [
+                      {
+                        "title": "Selecionar este run",
+                        "url": "/d/ft-coders?${__url_time_range}&var-tenant=${__data.fields.tenant}&var-stage=${__data.fields.stage}&var-run=${__data.fields.run_id}"
+                      },
+                      {
+                        "title": "Abrir na API",
+                        "url": "http://ft-coders.homelab.local/api/v1/runs/${__data.fields.run_id}",
+                        "targetBlank": true
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "custo (US$)"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "currencyUSD"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 4
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "type": "row",
+          "title": "Run selecionado",
+          "id": 10,
+          "collapsed": false,
+          "gridPos": {
+            "x": 0,
+            "y": 25,
+            "w": 24,
+            "h": 1
+          },
+          "panels": []
+        },
+        {
+          "id": 11,
+          "type": "table",
+          "title": "Eventos do run (tabela event)",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "ft-coders-pg"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "ft-coders-pg"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "select created_at as \"hora\", kind, left(data::text, 400) as resumo\nfrom event\nwhere tenant_id in ($tenant) and run_id = nullif('$run', '')::uuid\norder by created_at, id"
+            }
+          ],
+          "gridPos": {
+            "x": 0,
+            "y": 26,
+            "w": 24,
+            "h": 9
+          },
+          "description": "Fonte: event, filtrado pelo run da variável.",
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "resumo"
+                },
+                "properties": [
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "auto",
+                      "wrapText": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": 12,
+          "type": "table",
+          "title": "Checks por rodada",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "ft-coders-pg"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "ft-coders-pg"
+              },
+              "editorMode": "code",
+              "format": "table",
+              "rawQuery": true,
+              "rawSql": "select created_at as \"hora\", kind, (data->>'round')::int as rodada, data->>'status' as status,\n  case when jsonb_typeof(data->'gates') = 'array'\n       then (select string_agg((g->>'name') || '=' || (g->>'status'), '  ') from jsonb_array_elements(data->'gates') g) end as gates,\n  case when jsonb_typeof(data->'durations_s') = 'object'\n       then (select round(sum(d.v::numeric), 0) from jsonb_each_text(data->'durations_s') as d(k, v)) end as \"segundos\"\nfrom event\nwhere tenant_id in ($tenant) and run_id = nullif('$run', '')::uuid and kind in ('implement.check', 'spec.check')\norder by created_at, id"
+            }
+          ],
+          "gridPos": {
+            "x": 0,
+            "y": 35,
+            "w": 24,
+            "h": 6
+          },
+          "description": "Fonte: event (implement.check e spec.check)."
+        },
+        {
+          "id": 13,
           "type": "logs",
-          "title": "Eventos do agente (agent.event)",
+          "title": "Eventos do agente (Loki)",
           "datasource": {
             "type": "loki",
             "uid": "${datasource}"
           },
-          "gridPos": {
-            "x": 0,
-            "y": 7,
-            "w": 24,
-            "h": 10
-          },
-          "options": {
-            "showTime": true,
-            "wrapLogMessage": true,
-            "sortOrder": "Descending",
-            "enableLogDetails": true
-          },
           "targets": [
             {
               "refId": "A",
@@ -115,30 +588,46 @@ data:
                 "type": "loki",
                 "uid": "${datasource}"
               },
-              "expr": "{app=\"ft-coders\", process=\"runner\"} | json | tenant=~\"$tenant\" | run_id=~\"$run_id\" | event=\"agent.event\"",
+              "expr": "{app=\"ft-coders\", process=\"runner\"} |= \"agent.event\" |= \"$run\" | json | event=\"agent.event\" | line_format \"t{{.turn}} · {{.kind}} · {{.tool}} {{.text}}\"",
               "queryType": "range"
             }
-          ]
+          ],
+          "gridPos": {
+            "x": 0,
+            "y": 41,
+            "w": 24,
+            "h": 12
+          },
+          "description": "Turno, kind, tool e texto. O texto só aparece com agent_events=full.",
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Ascending",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false
+          }
         },
         {
-          "type": "logs",
-          "title": "Orquestrador",
+          "type": "row",
+          "title": "Erros e alertas (Loki)",
+          "id": 14,
+          "collapsed": false,
+          "gridPos": {
+            "x": 0,
+            "y": 53,
+            "w": 24,
+            "h": 1
+          },
+          "panels": []
+        },
+        {
+          "id": 15,
+          "type": "timeseries",
+          "title": "Erros e avisos por evento",
           "datasource": {
             "type": "loki",
             "uid": "${datasource}"
           },
-          "gridPos": {
-            "x": 0,
-            "y": 17,
-            "w": 24,
-            "h": 10
-          },
-          "options": {
-            "showTime": true,
-            "wrapLogMessage": true,
-            "sortOrder": "Descending",
-            "enableLogDetails": true
-          },
           "targets": [
             {
               "refId": "A",
@@ -146,30 +635,39 @@ data:
                 "type": "loki",
                 "uid": "${datasource}"
               },
-              "expr": "{app=\"ft-coders\", process=\"orchestrator\"} | json | tenant=~\"$tenant\" | run_id=~\"$run_id\"",
+              "expr": "sum by (event) (count_over_time({app=\"ft-coders\"} |~ \"\\\"level\\\": \\\"(error|warning)\\\"\" | json | level=~\"error|warning\" | tenant=~\"((${tenant:regex}))?\" [$__auto]))",
               "queryType": "range"
             }
-          ]
+          ],
+          "gridPos": {
+            "x": 0,
+            "y": 54,
+            "w": 12,
+            "h": 8
+          },
+          "description": "level error e warning: agent.timeout, executor.container_killed, verify.infra_error, runner.job_error, runner.account_paused, schema.drift etc.",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "bars",
+                "fillOpacity": 60,
+                "stacking": {
+                  "mode": "normal"
+                }
+              },
+              "decimals": 0
+            },
+            "overrides": []
+          }
         },
         {
+          "id": 16,
           "type": "logs",
-          "title": "Runner",
+          "title": "Erros e avisos",
           "datasource": {
             "type": "loki",
             "uid": "${datasource}"
           },
-          "gridPos": {
-            "x": 0,
-            "y": 27,
-            "w": 24,
-            "h": 10
-          },
-          "options": {
-            "showTime": true,
-            "wrapLogMessage": true,
-            "sortOrder": "Descending",
-            "enableLogDetails": true
-          },
           "targets": [
             {
               "refId": "A",
@@ -177,8 +675,101 @@ data:
                 "type": "loki",
                 "uid": "${datasource}"
               },
-              "expr": "{app=\"ft-coders\", process=\"runner\"} | json | tenant=~\"$tenant\" | run_id=~\"$run_id\"",
+              "expr": "{app=\"ft-coders\"} |~ \"\\\"level\\\": \\\"(error|warning)\\\"\" | json | level=~\"error|warning\" | tenant=~\"((${tenant:regex}))?\" | line_format \"{{.level}} · {{.event}} · {{.tenant}} · {{.run_id}} · {{.error}}\"",
               "queryType": "range"
+            }
+          ],
+          "gridPos": {
+            "x": 12,
+            "y": 54,
+            "w": 12,
+            "h": 8
+          },
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false
+          }
+        },
+        {
+          "type": "row",
+          "title": "Logs brutos",
+          "id": 19,
+          "collapsed": true,
+          "gridPos": {
+            "x": 0,
+            "y": 62,
+            "w": 24,
+            "h": 1
+          },
+          "panels": [
+            {
+              "id": 17,
+              "type": "logs",
+              "title": "Orquestrador (filtrado por tenant)",
+              "datasource": {
+                "type": "loki",
+                "uid": "${datasource}"
+              },
+              "targets": [
+                {
+                  "refId": "A",
+                  "datasource": {
+                    "type": "loki",
+                    "uid": "${datasource}"
+                  },
+                  "expr": "{app=\"ft-coders\", process=\"orchestrator\"} |~ \"\\\"tenant\\\": \\\"((${tenant:regex}))\\\"\" ",
+                  "queryType": "range"
+                }
+              ],
+              "gridPos": {
+                "x": 0,
+                "y": 63,
+                "w": 24,
+                "h": 10
+              },
+              "options": {
+                "showTime": true,
+                "wrapLogMessage": true,
+                "sortOrder": "Descending",
+                "enableLogDetails": true,
+                "prettifyLogMessage": false
+              }
+            },
+            {
+              "id": 18,
+              "type": "logs",
+              "title": "Runner (filtrado por tenant e run)",
+              "datasource": {
+                "type": "loki",
+                "uid": "${datasource}"
+              },
+              "targets": [
+                {
+                  "refId": "A",
+                  "datasource": {
+                    "type": "loki",
+                    "uid": "${datasource}"
+                  },
+                  "expr": "{app=\"ft-coders\", process=\"runner\"} |~ \"\\\"tenant\\\": \\\"((${tenant:regex}))\\\"\" |= \"$run\"",
+                  "queryType": "range"
+                }
+              ],
+              "gridPos": {
+                "x": 0,
+                "y": 73,
+                "w": 24,
+                "h": 10
+              },
+              "options": {
+                "showTime": true,
+                "wrapLogMessage": true,
+                "sortOrder": "Descending",
+                "enableLogDetails": true,
+                "prettifyLogMessage": false
+              }
             }
           ]
         }

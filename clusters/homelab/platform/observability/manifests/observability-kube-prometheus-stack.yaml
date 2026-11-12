@@ -32,6 +32,13 @@ spec:
               - secretName: grafana-tls
                 hosts:
                   - grafana.homelab.local
+          sidecar:
+            datasources:
+              # o datasource do Postgres da fábrica vem de um Secret no namespace factory
+              # (workloads/factory/manifests/postgresql/grafana-datasource-externalsecret.yaml).
+              # Só estes namespaces: nenhum outro consegue injetar datasource no Grafana.
+              searchNamespace: observability,factory
+              resource: both
           additionalDataSources:
             - name: Loki
               type: loki
