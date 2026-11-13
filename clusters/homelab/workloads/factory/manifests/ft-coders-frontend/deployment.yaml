@@ -37,7 +37,7 @@ spec:
       containers:
         - name: nginx
           # O pipeline reescreve a linha image: com a tag do commit; manter o formato.
-          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/ft-coders-frontend:sha-9aa4ea9
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/ft-coders-frontend:sha-60a98dd
           ports:
             - name: http
               containerPort: 8080
