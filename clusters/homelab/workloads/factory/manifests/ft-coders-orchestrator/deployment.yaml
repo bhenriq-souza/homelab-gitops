@@ -44,7 +44,7 @@ spec:
       initContainers:
         - name: migrate
           # O pipeline reescreve as linhas `image:` com a tag do commit; manter o formato.
-          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/ft-coders-orchestrator:sha-2c81419
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/ft-coders-orchestrator:sha-89201e2
           args: ["db", "migrate"]
           env:
             - name: FACTORY_DATABASE_URL
@@ -86,7 +86,7 @@ spec:
               memory: 512Mi
       containers:
         - name: orchestrator
-          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/ft-coders-orchestrator:sha-2c81419
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/ft-coders-orchestrator:sha-89201e2
           args: ["orchestrator"]
           env:
             - name: FACTORY_DATABASE_URL
@@ -191,7 +191,7 @@ spec:
       containers:
         - name: api
           # O pipeline reescreve as linhas `image:` com a tag do commit; manter o formato.
-          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/ft-coders-orchestrator:sha-2c81419
+          image: us-central1-docker.pkg.dev/homelab-492918/homelab-apps/ft-coders-orchestrator:sha-89201e2
           args: ["api"]
           ports:
             - name: http
