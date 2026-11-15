@@ -213,6 +213,12 @@ spec:
               value: "8000"
             - name: FACTORY_LOG_JSON
               value: "true"
+            # Ações do board pela UI (spec 0031, INV-0031-09): sem login, só tenant com `lab: true`.
+            # Tenant de cliente só entra aqui depois da autenticação da UI (3.5).
+            - name: FACTORY_API_WRITE_ENABLED
+              value: "true"
+            - name: FACTORY_API_WRITE_TENANTS
+              value: farmtech
           volumeMounts:
             - name: tmp
               mountPath: /tmp
